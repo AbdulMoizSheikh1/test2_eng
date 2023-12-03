@@ -1,0 +1,406 @@
+module top_wb_1_short_path(
+
+input clk,
+input rst,
+input [7:0] addr,
+input [31:0] data_in,
+output [31:0] data_out,
+output ack,
+input cyc,
+input we,
+input str,
+
+output [7:0] la_out_test,
+output v_flag_io,
+output state_flag_io,
+
+output wi0_flag,
+output wi1_flag,
+
+output data_in_flag,
+output data_out_flag
+);
+
+
+reg [31:0] data_out_reg;
+reg [63:0] in_data;
+reg [71:0] wi0;
+reg [71:0] wi1;
+reg [2:0] addr_in;
+reg we_in;
+wire [15:0] outa;
+wire [15:0] outb;
+
+wire [2:0] addr_in_flag, addr_out_flag;
+wire out_en_flag,in_en_flag;
+
+wire v_io, state_io;
+
+
+
+
+assign la_out_test={addr_in_flag,in_en_flag,addr_out_flag,out_en_flag};
+assign v_flag_io=v_io;
+assign state_flag_io=state_io;
+
+
+
+assign data_out = data_out_reg;
+assign ack=(cyc&&str&&we)?1'b1:1'b0;
+
+
+
+
+top_two_engine t2(
+
+.clk(clk),
+.rst(rst),
+.en(addr[7]),
+
+.in_data(in_data),
+.addr_in(addr_in),
+.we_in(we_in),
+
+.outa(outa),
+.outb(outb),
+.wi0(wi0),
+.wi1(wi1),
+
+.la_out(la_out_test),
+.v_flag_io(v_flag_io),
+.state_flag(state_flag_io),
+
+.w0_comp_flag(wi0_flag),
+.w1_comp_flag(wi1_flag),
+
+.in_data_flag(data_in_flag),
+.out_data_flag(data_out_flag)
+);
+
+/*top_one_engine te1(
+
+.clk(clk),
+.rst(rst),
+.en(addr[7]),
+
+.in_data(in_data),
+.addr_in(addr_in),
+.we_in(we_in),
+
+.outa(outa),
+.outb(outb),
+.wi(wi),
+
+.flag_v_int(v_io),
+.state_flag(state_io),
+.addr_in_flag(addr_in_flag), 
+.addr_out_flag(addr_out_flag),
+.we_in_flag(in_en_flag),
+.out_en_flag(out_en_flag),
+
+.wi_pl(wi_pl),
+.data_out_buff_pl(data_out_pl_buff),
+.data_in_buff_pl(data_in_pl_buff),
+.outa_pl(outa_pl),
+.outb_pl(outb_pl)
+);*/
+
+/////data for features
+/*always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+in_data=0;
+we_in=0;
+end
+else
+begin
+if( cyc && str )
+begin
+if(we)
+begin
+if(addr[6:4]==3'b100)
+begin
+case(addr[3])
+0:begin
+in_data[31:0]=data_in;
+we_in=1;
+end
+1:begin
+in_data[63:32]=data_in;
+we_in=1;
+end
+endcase
+end
+end
+end
+end
+end*/
+
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+in_data=0;
+we_in=0;
+addr_in=0;
+end
+else
+begin
+if(cyc && str && we && addr[7:4]==4'b1100)
+begin
+we_in=1;
+addr_in=addr[2:0];
+case(addr[3])
+0:begin
+in_data[31:0]=data_in;
+end
+1:begin
+in_data[63:32]=data_in;
+end
+endcase
+end
+else
+begin
+we_in=0;
+in_data=in_data;
+addr_in=addr_in;
+end
+end
+end
+
+
+/*
+//addr for features
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+addr_in=0;
+end
+else
+begin
+if( cyc && str )
+begin
+if(we)
+begin
+if(addr[6:3]==4'b1000 || addr[6:3]==4'b1001)
+begin
+addr_in=addr[2:0];
+end
+else
+begin
+addr_in=addr_in;
+end
+end
+end
+end
+end
+*/
+/*
+/////data for weights
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+wi=0;
+end
+else
+begin
+if( cyc && str )
+begin
+if(we)
+begin
+if(addr[6:2]==5'b10100)
+begin
+case (addr[1:0])
+
+2'b01:begin
+wi[31:0]=data_in[31:0];
+end
+
+2'b10:begin
+wi[63:32]=data_in[31:0];
+end
+
+2'b11:begin
+wi[71:64]=data_in[31:24];
+end
+
+default:begin
+wi=wi;
+end
+
+endcase
+end
+
+else
+begin
+wi=wi;
+end
+end
+end
+end
+end
+*/
+
+
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+wi0=0;
+wi1=0;
+end
+else
+begin
+if(cyc && str && we)
+begin
+case (addr)
+
+8'b01010001:begin
+wi0[31:0]=data_in[31:0];
+end
+
+8'b01010010:begin
+wi0[63:32]=data_in[31:0];
+end
+
+8'b01010011:begin
+wi0[71:64]=data_in[31:24];
+end
+
+8'b01010100:begin
+wi1[31:0]=data_in[31:0];
+end
+
+8'b01010101:begin
+wi1[63:32]=data_in[31:0];
+end
+
+8'b01010110:begin
+wi1[71:64]=data_in[31:24];
+end
+
+default:begin
+wi1=wi1;
+wi0=wi0;
+end
+
+endcase
+end
+
+else
+begin
+wi1=wi1;
+wi0=wi0;
+end
+
+end
+end
+
+
+
+
+/*
+///data output
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+data_out_reg=0;
+end
+else
+begin
+if( cyc && str )
+begin
+if(!we)
+begin
+case (addr[6:5])
+00:begin
+
+case (addr[4:0])
+00001:begin
+data_out_reg=32'h414d5331;     //"AMS1"
+end
+
+00010:begin
+data_out_reg=32'h43454149;  //"CEAI"
+end
+
+00011:begin
+data_out_reg=32'h312e3030;  //"1.00"
+end
+
+default: begin
+data_out_reg=data_out_reg;
+end
+
+endcase
+end
+
+01: begin
+if(addr[4:0]==5'b00000)
+begin
+data_out_reg={outb,outa};
+end
+
+else
+begin
+data_out_reg=data_out_reg;
+end
+
+end
+
+default:begin
+data_out_reg=data_out_reg;
+end
+endcase
+end
+end
+end
+end
+*/
+
+always @ (posedge clk, posedge rst)
+begin
+if(rst)
+begin
+data_out_reg=0;
+end
+else
+begin
+if(cyc && str && !we )
+begin
+case (addr)
+
+8'b10000001:begin
+data_out_reg=32'h414d5331;     //"AMS1"
+end
+
+8'b10000010:begin
+data_out_reg=32'h43454149;  //"CEAI"
+end
+
+8'b10000011:begin
+data_out_reg=32'h322e3030;  //"2.00"
+end
+
+8'b10100000:begin
+data_out_reg={outb,outa};    //result output 
+end
+
+default: begin
+data_out_reg=data_out_reg;   //retainment
+end
+endcase
+end
+else
+begin
+data_out_reg=0;
+end
+end
+end
+
+
+endmodule
